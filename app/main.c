@@ -154,8 +154,8 @@ int tokenize(char *input_str, char **args) {
   int token_idx = 0;
   bool token_in = false;
   bool quote_in = false;
+  bool TestVar = false;
   bool dwait = false;
-  bool testvar =false;
   bool esc_sec = false;
   char temp[1024];
   for (int input_idx = 0; input_idx < 100; input_idx++) {
@@ -191,44 +191,76 @@ int tokenize(char *input_str, char **args) {
         quote_in = false;
       
       } else if (token_in && quote_in && !dwait) {
-      
+
         temp[token_idx] = input_str[input_idx];
         token_idx++;
       }else if ((token_in && dwait && !quote_in) || (token_in && dwait && quote_in) )
-      
-      testvar = false;
-      
-      /*
       {
-        if (input_str[input_idx] == '\\') {
-        input_idx++; // Move to the next character after the backslash
-        if (input_str[input_idx] == '\"') {
-            temp[token_idx] = '\"'; // Keep the escaped double quote
-            token_idx++;
-        } else {
-            // Handle other escaped characters (if needed)
-            temp[token_idx] = '\\'; 
-            token_idx++; 
+        if(input_str[input_idx] == '\\'){
+
+          if(quote_in == true){
             temp[token_idx] = input_str[input_idx]; 
             token_idx++;
-        }
+            input_idx++;  // Move to the next character after the backslash
+            temp[token_idx] = input_str[input_idx];  // Handle the character after the backslash
+            token_idx++;
+
+          }else{char nextChar = input_str[input_idx+1];
+          
+          switch (nextChar)
+          {
+          case '\"':
+            temp[token_idx] = '\"';
+            printf("condition hit\n");
+            token_idx++;
+            break;
+          case '\\':
+            temp[token_idx] = '\\';
+            token_idx++;
+            break;
+          case 'n':
+            temp[token_idx] = '\n';
+            token_idx++;
+            break;
+          case '$':
+            temp[token_idx] = '$';
+            token_idx++;   
+            break;
+          default:
+            temp[token_idx] = '\\';
+            token_idx++;
+            break;
+          }
+          input_idx++;
+          }
           
         }else{
         temp[token_idx] = input_str[input_idx];
         token_idx++;
         }
       }
-*/
+
+    }else if(input_str[input_idx] == '\\' && (!quote_in && !dwait)){
+        input_idx++;
+        temp[token_idx++] = input_str[input_idx];
+          
+
     }else {
       if (token_in == 0)
         token_in = true;
-        
+        if (input_str[input_idx] == '\\') {
+                    // Treat backslash literally
+                    temp[token_idx] = '\\';
+                    token_idx++;
+                    input_idx++;
+                }
       temp[token_idx] = input_str[input_idx];
       token_idx++;
     } 
   }
   return token_num;
 }
+
 
 int main() {
  
@@ -254,7 +286,6 @@ int main() {
     input[strlen(input) -1 ] = '\0';
 
     argc = tokenize(input,args);
-    
 
   // Command Checks
     if(exitShell(input) == 0){
@@ -288,6 +319,5 @@ int main() {
 
   }
   
-
   return 0;
 }
