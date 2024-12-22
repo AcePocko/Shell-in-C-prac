@@ -1,317 +1,184 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
-#include <sys/types.h>
-
-
-int exitShell(char input[]){
-  if (strncmp(input, "exit",4) == 0)
-    {
-      return 0;
-    }
-}
-
-char **getPaths(char* path, int* path_count) {
-    path_count[0] = 0;
-    for (int i = 0; path[i]; i++) {
-        if (path[i] == ':') path_count[0]++;
-    }
-    path_count[0]++;
-    char** filepaths = calloc(path_count[0], sizeof(char*));
-    for (int i = 0; i < path_count[0]; i++) filepaths[i] = calloc(100, sizeof(char));
-    int x = 0;
-    int y = 0;
-    for (int i = 0; path[i]; i++) {
-        if (path[i] != ':') {
-            filepaths[x][y++] = path[i];
-        }
-        else {
-            //printf("%s\n", filepaths[x]);
-            filepaths[x++][y] = '\0';
-            y = 0;
-        }
-    }
-    //printf("getPaths was successfull\n");
-    return filepaths;
-}
-
-
-
-void echoFunction(char **args, int argc){
-  
-  for (int arg_idx = 1; arg_idx < argc; arg_idx++) {
-        printf("%s", args[arg_idx]);
-        if (arg_idx != argc - 1)
-          printf(" ");
-      }
-      printf("\n");
-  
-  //printf("%s\n", args[1]);
-}
-
-int isExecutable(char *path){
-  return access(path, X_OK);
-}
-
-void execute(char input[100]) {
-  char *PATH = getenv("PATH");
-  int *path_count = calloc(1, sizeof(int));
-  char **filepaths = getPaths(PATH, path_count);
-  
-  for (int i = 0; i < path_count[0]; i++) {
-    char *inputCopy = calloc(100, sizeof(char));
-    strcpy(inputCopy, input);
-    char *command = strtok(inputCopy, " ");
-    char fullpath[strlen(filepaths[i]) + strlen(command)];
-    
-    sprintf(fullpath, "%s/%s", filepaths[i], command);
-    
-    if (isExecutable(fullpath) == 0) {
-      char exec[strlen(filepaths[i]) + strlen(input)];
-      sprintf(exec, "%s/%s", filepaths[i], input);
-      // printf("%s\n", input);
-      system(exec);
-      return;
-    }
+#define INPUTLEN 4096
+#define PATHLEN 4096
+#define ARGNUM 256
+typedef enum builtin_cmd { usrcmd = 0, cd, ex, echo, pwd, type } shCmd;
+void get_command(char *cmd_str, int maxlen) {
+  int ch = 0;
+  int len = 0;
+  while (((ch = getchar()) != EOF && ch != '\n') && len < maxlen) {
+    cmd_str[len] = ch;
+    len++;
   }
-  printf("%s: command not found\n", input);
+  cmd_str[len] = '\0';
 }
-
-char *find_PATH_Exec(char input[]){
-  //Set up
-  char *path = getenv("PATH");
-  char *command = input;
-  
-  char *path_copy = strdup(path);
-  char *dir=strtok(path_copy,":");
-  static char full_path[1024];
-
-  if(path == NULL){
-    return NULL;
-  }
-
-
-  while (dir!=NULL)
-  {
-    snprintf(full_path, sizeof(full_path),"%s/%s", dir, command);
-    if(isExecutable(full_path) == 0){
-      free(path_copy);
-      return full_path;
-    }
-    dir= strtok(NULL, ":");
-  }
-
-  free(path_copy);
-  return NULL;
-
+/* Expands argument list with a new token. */
+void add_token(char *token, char **args, int token_num, int token_len) {
+  token[token_len] = '\0';
+  args[token_num] = malloc(sizeof(char) * token_len);
+  strcpy(args[token_num], token);
 }
-
-
-void typeFunction(char input[]){
-  
-  // Checks for builtin functions
-    if (strcmp(input+5,"echo") == 0 || strcmp(input+5,"type") == 0 || strcmp(input+5,"exit") == 0 || 
-    strcmp(input+5,"pwd") == 0 || strcmp(input+5,"cd") == 0)
-    {
-      printf("%s is a shell builtin\n", input+5);
-    }else{
-      char *path = find_PATH_Exec(input+5);
-      if(path){
-        printf("%s is %s\n", input+5, path);
-      }else{
-        printf("%s: not found\n", input+5);
-      }
-    }
- 
-}
-
-void GetDirectory(){
-  char directyCurrent[1024];
-  if (getcwd(directyCurrent, sizeof(directyCurrent)) != NULL){
-    printf("%s\n", directyCurrent);
-  }
-
-}
-
-void ChangeDirectory(char input[]){
-  
-  char *directory = input+3;
-  if(strcmp(input+3,"~") == 0){
-    directory = getenv("HOME");
-  }
-  if (chdir(directory) < 0)
-  {
-    printf("cd: %s: No such file or directory\n", input+3);
-  }
-  
-}
-
-
-int tokenize(char *input_str, char **args) {
+/* Tokenizes the command line input. */
+int tokenize(char *input_str, char **args, int maxlen) {
   int token_num = 0;
   int token_idx = 0;
   bool token_in = false;
-  bool quote_in = false;
-  bool dwait = false;
+  bool single_quote_in = false;
+  bool double_quote_in = false;
   bool esc_sec = false;
   char temp[1024];
-  for (int input_idx = 0; input_idx < 100; input_idx++) {
-    if (input_str[input_idx] == '\0') {
-      temp[token_idx] = '\0';
-      args[token_num] = malloc(sizeof(char) * strlen(temp));
-      strcpy(args[token_num], temp);
+  for (int input_idx = 0; input_idx < maxlen; input_idx++) {
+    char ch = input_str[input_idx];
+    if (ch == '\0') {
+      add_token(temp, args, token_num, token_idx);
       token_num++;
       break;
-    } else if (input_str[input_idx] == '\'' && !dwait) {
-      if (quote_in)
-        quote_in = false;
-      else
-        quote_in = true;
-    } else if(input_str[input_idx] == '\"'){
-      if(!dwait && quote_in == false){
-        dwait = true;
-        
-      }else{
-        dwait=false;
-        
-      }
-      }else if (input_str[input_idx] == ' ' ) {
-        
-      if (token_in && !quote_in && !dwait) {
-        temp[token_idx] = '\0';
-        token_idx = 0;
-        args[token_num] = malloc(sizeof(char) * strlen(temp));
-        strcpy(args[token_num], temp);
-        token_num++;
-        dwait = false;
-        token_in = false;
-        quote_in = false;
-      
-      } else if (token_in && quote_in && !dwait) {
-        if(input_str[input_idx] == '\\'){
-          temp[token_idx] = input_str[input_idx]; 
+    }
+    switch (ch) {
+    case '\\':
+      if (!single_quote_in && !double_quote_in) {
+        if (!esc_sec) {
+          esc_sec = true;
+        } else {
+          if (token_in == 0)
+            token_in = true;
+          temp[token_idx] = ch;
           token_idx++;
-          input_idx++;  // Move to the next character after the backslash
-          temp[token_idx] = input_str[input_idx];  // Handle the character after the backslash
-          token_idx++;
+          esc_sec = false;
         }
-
-        temp[token_idx] = input_str[input_idx];
+      } else {
+        temp[token_idx] = ch;
         token_idx++;
-      }else if ((token_in && dwait && !quote_in) || (token_in && dwait && quote_in) )
-      {
-        if(input_str[input_idx] == '\\'){
-
-         char nextChar = input_str[input_idx+1];
-        
-          switch (nextChar)
-          {
-          case '\"':
-            temp[token_idx] = '\"';
-            printf("condition hit\n");
-            token_idx++;
-            break;
-          case '\\':
-            temp[token_idx] = '\\';
-            token_idx++;
-            break;
-          case 'n':
-            temp[token_idx] = '\n';
-            token_idx++;
-            break;
-          case '$':
-            temp[token_idx] = '$';
-            token_idx++;   
-            break;
-          default:
-            temp[token_idx] = '\\';
-            token_idx++;
-            break;
-          }
-          input_idx++;
-          
-          
-        }else{
-        temp[token_idx] = input_str[input_idx];
+      }
+      break;
+    case '\'':
+      if (esc_sec) {
+        if (token_in == 0)
+          token_in = true;
+        temp[token_idx] = ch;
         token_idx++;
+        esc_sec = false;
+        break;
+      }
+      if (double_quote_in) {
+        temp[token_idx] = ch;
+        token_idx++;
+      } else {
+        if (single_quote_in) {
+          single_quote_in = false;
+        } else {
+          single_quote_in = true;
+          token_in = true;
         }
       }
-
-    }else if(input_str[input_idx] == '\\' && (!quote_in && !dwait)){
-        input_idx++;
-        temp[token_idx++] = input_str[input_idx];
-          
-
-    }else {
-      if (token_in == 0)
+      break;
+    case '"':
+      if (esc_sec) {
+        if (token_in == 0)
+          token_in = true;
+        temp[token_idx] = ch;
+        token_idx++;
+        esc_sec = false;
+        break;
+      }
+      if (double_quote_in) {
+        double_quote_in = false;
+      if (single_quote_in) {
+        temp[token_idx] = ch;
+        token_idx++;
+      } else {
+        double_quote_in = true;
         token_in = true;
-      temp[token_idx] = input_str[input_idx];
-      token_idx++;
-    } 
-  }
-  return token_num;
-}
-
-int main() {
- 
-  const char exit[4] = "exit";
-  int argc = 0;
-  char *argv[10];
-  char *args[256];
-  while (1)
-  {
-
-    for (int arg_idx = 0; arg_idx < argc; arg_idx++) {
+        if (double_quote_in) {
+          double_quote_in = false;
+        } else {
+          double_quote_in = true;
+          token_in = true;
+        }
+      }
+      break;
+    case ' ':
+Expand 98 lines
+      strcpy(env_path, getenv("PATH")); // Environment path
+      if (cmd_name > usrcmd) {
+        printf("%s is a shell builtin\n", args[1]);
+        fflush(stdout);
+      } else {
+        if ((parse_path(env_path, args[1], cmd_path)) != -1)
+        if ((parse_path(env_path, args[1], cmd_path)) != -1) {
+          printf("%s is %s\n", args[1], cmd_path);
+        else
+          fflush(stdout);
+        } else {
+          printf("%s: not found\n", args[1]);
+          fflush(stdout);
+        }
+      }
+    } break;
+    case cd:
+      if (!strcmp(args[1], "~"))
+        chdir(home_path);
+      else if (chdir(args[1]) != 0)
+      else if (chdir(args[1]) != 0) {
+        printf("%s: No such file or directory\n", args[1]);
+        fflush(stdout);
+      }
+      break;
+    case ex:
+      if (args[1] != NULL) {
+        int exit_code = atoi(args[1]);
+        exit(exit_code);
+      } else {
+        exit(0);
+      }
+      break;
+    case echo:
+      for (int arg_idx = 1; arg_idx < num_args; arg_idx++) {
+        printf("%s", args[arg_idx]);
+        if (arg_idx != num_args - 1)
+        fflush(stdout);
+        if (arg_idx != num_args - 1) {
+          printf(" ");
+          fflush(stdout);
+        }
+      }
+      printf("\n");
+      fflush(stdout);
+      break;
+    case pwd:
+      if (getcwd(curr_path, PATHLEN) != NULL)
+      if (getcwd(curr_path, PATHLEN) != NULL) {
+        printf("%s\n", curr_path);
+        fflush(stdout);
+      }
+      break;
+    case usrcmd:
+      strcpy(env_path, getenv("PATH"));
+      if ((parse_path(env_path, args[0], cmd_path)) != -1) {
+        pid_t pid = fork();
+        if (pid == 0) {
+          int ret = execvp(cmd_path, args);
+          exit(ret);
+        }
+        int status = 0;
+        while ((pid = wait(&status)) > 0)
+          ;
+      } else {
+        printf("%s: not found\n", user_input);
+        fflush(stdout);
+      }
+      break;
+    }
+    // Freeing the memory of previous tokens after the command is analyzed
+    for (int arg_idx = 0; arg_idx < num_args; arg_idx++) {
       free(args[arg_idx]);
       args[arg_idx] = NULL;
     }
-  
-  // Uncomment this block to pass the first stage
-    printf("$ ");
-    fflush(stdout);
-
-  // Wait for user input
-    char input[100];
-    fgets(input, 100, stdin);
-    input[strlen(input) -1 ] = '\0';
-
-    argc = tokenize(input,args);
-    
-
-  // Command Checks
-    if(exitShell(input) == 0){
-      break;
-    }else if (strncmp(input, "echo", 4) == 0)
-    {
-      echoFunction(args, argc);
-      continue;
-    }else if (strncmp(input, "type", 4) == 0)
-    {
-      typeFunction(input);
-      continue;
-    }else if(strncmp(input, "pwd", 3) == 0){
-      GetDirectory();
-      continue;
-    }else if(strncmp(input,"cd", 2) == 0){
-      if (chdir(input + 3) < 0)
-      {
-       ChangeDirectory(input);
-       continue;
-      }
-      continue;
-    }else{
-      execute(input);
-      continue;
-
-    }
-    
-    //Default if command not found
-    printf("%s: command not found\n", input);
-
   }
-  
-
   return 0;
 }
