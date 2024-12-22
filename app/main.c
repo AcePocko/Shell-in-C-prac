@@ -1,260 +1,293 @@
-#include <ctype.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
+#include <stdlib.h>
+#include <stdbool.h>
 #include <unistd.h>
-char *builtin_commands[] = {"exit", "echo", "type", "pwd", "cd"};
-char **shell_tokenize(const char *input, size_t *token_count) {
-  if (!input)
-    return NULL;
-  size_t capacity = 10;
-  char **tokens = malloc(capacity * sizeof(char *));
-  if (!tokens)
-    return NULL;
-  *token_count = 0;
-  const char *cursor = input;
-  char buffer[1024];
-  size_t buffer_index = 0;
-  while (*cursor) {
-    // Skip leading whitespace
-    while (*cursor && isspace(*cursor)) {
-      cursor++;
+#include <sys/types.h>
+
+
+int exitShell(char input[]){
+  if (strncmp(input, "exit",4) == 0)
+    {
+      return 0;
     }
-    if (*cursor == '\0')
-      break;
-    char quote = '\0';
-    buffer_index = 0;
-    while (*cursor && (quote || !isspace(*cursor))) {
-      if (*cursor == '\\') {
-        cursor++;
-        if (quote == '"') {
-          // Inside double quotes: only escape ", \, $, and `
-          // Inside double quotes: escape specific characters
-          if (*cursor == '"' || *cursor == '\\' || *cursor == '$' ||
-              *cursor == '`') {
-            buffer[buffer_index++] = *cursor++;
-          } else {
-            buffer[buffer_index++] = '\\';
-            if (*cursor)
-              buffer[buffer_index++] = *cursor++;
-          }
-        } else if (*cursor == '\n') {
-          // Line continuation: remove \newline pair
-          cursor++;
-        } else if (quote == '\0') {
-          // Unquoted backslash
-          if (*cursor == '\n') {
-            // Line continuation: remove \newline pair
-            cursor++;
-          } else if (*cursor) {
-            buffer[buffer_index++] = *cursor++;
-          }
-        } else {
-          buffer[buffer_index++] = *cursor++;
-          // Inside single quotes: backslashes are treated literally
-          buffer[buffer_index++] = '\\';
-        }
-      } else if (*cursor == '"' || *cursor == '\'') {
-        if (quote == *cursor) {
-          // End quote
-          quote = '\0';
-          cursor++;
-        } else if (quote == '\0') {
-          // Start quote
-          quote = *cursor;
-          cursor++;
-        } else {
-          // Inside mismatched quote
-          buffer[buffer_index++] = *cursor++;
-        }
-      } else {
-        buffer[buffer_index++] = *cursor++;
-      }
-    }
-    buffer[buffer_index] = '\0';
-    if (*token_count >= capacity) {
-      capacity *= 2;
-      char **new_tokens = realloc(tokens, capacity * sizeof(char *));
-      if (!new_tokens) {
-        for (size_t i = 0; i < *token_count; i++) {
-          free(tokens[i]);
-        }
-        free(tokens);
-        return NULL;
-      }
-      tokens = new_tokens;
-    }
-    tokens[*token_count] = strdup(buffer);
-    if (!tokens[*token_count]) {
-      for (size_t i = 0; i < *token_count; i++) {
-        free(tokens[i]);
-      }
-      free(tokens);
-      return NULL;
-    }
-    (*token_count)++;
-  }
-  return tokens;
 }
-void free_tokens(char **tokens, size_t token_count) {
-  if (!tokens)
-    return;
-  for (size_t i = 0; i < token_count; i++) {
-    free(tokens[i]);
-  }
-  free(tokens);
+
+char **getPaths(char* path, int* path_count) {
+    path_count[0] = 0;
+    for (int i = 0; path[i]; i++) {
+        if (path[i] == ':') path_count[0]++;
+    }
+    path_count[0]++;
+    char** filepaths = calloc(path_count[0], sizeof(char*));
+    for (int i = 0; i < path_count[0]; i++) filepaths[i] = calloc(100, sizeof(char));
+    int x = 0;
+    int y = 0;
+    for (int i = 0; path[i]; i++) {
+        if (path[i] != ':') {
+            filepaths[x][y++] = path[i];
+        }
+        else {
+            //printf("%s\n", filepaths[x]);
+            filepaths[x++][y] = '\0';
+            y = 0;
+        }
+    }
+    //printf("getPaths was successfull\n");
+    return filepaths;
 }
-char *find_in_path(char *command) {
+
+
+
+void echoFunction(char **args, int argc){
+  
+  for (int arg_idx = 1; arg_idx < argc; arg_idx++) {
+        printf("%s", args[arg_idx]);
+        if (arg_idx != argc - 1)
+          printf(" ");
+      }
+      printf("\n");
+  
+  //printf("%s\n", args[1]);
+}
+
+int isExecutable(char *path){
+  return access(path, X_OK);
+}
+
+void execute(char input[100]) {
+  char *PATH = getenv("PATH");
+  int *path_count = calloc(1, sizeof(int));
+  char **filepaths = getPaths(PATH, path_count);
+  
+  for (int i = 0; i < path_count[0]; i++) {
+    char *inputCopy = calloc(100, sizeof(char));
+    strcpy(inputCopy, input);
+    char *command = strtok(inputCopy, " ");
+    char fullpath[strlen(filepaths[i]) + strlen(command)];
+    
+    sprintf(fullpath, "%s/%s", filepaths[i], command);
+    
+    if (isExecutable(fullpath) == 0) {
+      char exec[strlen(filepaths[i]) + strlen(input)];
+      sprintf(exec, "%s/%s", filepaths[i], input);
+      // printf("%s\n", input);
+      system(exec);
+      return;
+    }
+  }
+  printf("%s: command not found\n", input);
+}
+
+char *find_PATH_Exec(char input[]){
+  //Set up
   char *path = getenv("PATH");
-  char *path_buf = strdup(path);
-  // Find the first directory in PATH that contains the command
-  char *dir = strtok(path_buf, ":");
-  while (dir != NULL) {
-    char command_path[100];
-    sprintf(command_path, "%s/%s", dir, command);
-    // Check if the command exists
-    if (access(command_path, F_OK) == 0) {
-      free(path_buf);
-      return strdup(command_path);
-    }
-    dir = strtok(NULL, ":");
+  char *command = input;
+  
+  char *path_copy = strdup(path);
+  char *dir=strtok(path_copy,":");
+  static char full_path[1024];
+
+  if(path == NULL){
+    return NULL;
   }
-  free(path_buf);
+
+
+  while (dir!=NULL)
+  {
+    snprintf(full_path, sizeof(full_path),"%s/%s", dir, command);
+    if(isExecutable(full_path) == 0){
+      free(path_copy);
+      return full_path;
+    }
+    dir= strtok(NULL, ":");
+  }
+
+  free(path_copy);
   return NULL;
+
 }
-void command_echo(size_t argc, char *args[]) {
-  for (int i = 1; i < argc; i++) {
-    printf("%s", args[i]);
-    if (i < argc - 1) {
-      printf(" ");
-    }
-  }
-  printf("\n");
-}
-void command_type(size_t argc, char *args[]) {
-  for (int i = 1; i < argc; i++) {
-    for (int j = 0; j < sizeof(builtin_commands) / sizeof(builtin_commands[0]);
-         j++) {
-      if (strcmp(args[i], builtin_commands[j]) == 0) {
-        printf("%s is a shell builtin\n", args[i]);
-        return;
+
+
+void typeFunction(char input[]){
+  
+  // Checks for builtin functions
+    if (strcmp(input+5,"echo") == 0 || strcmp(input+5,"type") == 0 || strcmp(input+5,"exit") == 0 || 
+    strcmp(input+5,"pwd") == 0 || strcmp(input+5,"cd") == 0)
+    {
+      printf("%s is a shell builtin\n", input+5);
+    }else{
+      char *path = find_PATH_Exec(input+5);
+      if(path){
+        printf("%s is %s\n", input+5, path);
+      }else{
+        printf("%s: not found\n", input+5);
       }
     }
-    char *command_path;
-    if ((command_path = find_in_path(args[i]))) {
-      printf("%s is %s\n", args[i], command_path);
-      free(command_path);
-      continue;
-    }
-    printf("%s: not found\n", args[i]);
-  }
+ 
 }
-void command_pwd(size_t argc, char *args[]) {
-  char cwd[1024];
-  if (getcwd(cwd, sizeof(cwd)) != NULL) {
-    printf("%s\n", cwd);
-  } else {
-    perror("getcwd");
+
+void GetDirectory(){
+  char directyCurrent[1024];
+  if (getcwd(directyCurrent, sizeof(directyCurrent)) != NULL){
+    printf("%s\n", directyCurrent);
   }
+
 }
-void command_cd(size_t argc, char *args[]) {
-  if (argc < 2) {
-    fprintf(stderr, "cd: missing argument\n");
-    return;
+
+void ChangeDirectory(char input[]){
+  
+  char *directory = input+3;
+  if(strcmp(input+3,"~") == 0){
+    directory = getenv("HOME");
   }
-  if (strcmp(args[1], "~") == 0) {
-    char *home = getenv("HOME");
-    if (chdir(home) != 0) {
-      perror("chdir");
-    }
-    return;
+  if (chdir(directory) < 0)
+  {
+    printf("cd: %s: No such file or directory\n", input+3);
   }
-  if (chdir(args[1]) != 0) {
-    printf("cd: %s: No such file or directory\n", args[1]);
-  }
+  
 }
-void execute_command(char *command_path, char *args[]) {
-  pid_t pid = fork();
-  if (pid == 0) {
-    // Child process
-    execv(command_path, args);
-    perror("execv");
-    exit(1);
-  } else if (pid > 0) {
-    // Parent process
-    int status;
-    waitpid(pid, &status, 0);
-  } else {
-    perror("fork");
-  }
-}
-int main() {
-  // Flush after every printf
-  setbuf(stdout, NULL);
-  for (;;) {
-    printf("$ ");
-    // Wait for user input
-    char input[1024];
-    fgets(input, 1024, stdin);
-    if (feof(stdin)) {
+
+
+int tokenize(char *input_str, char **args) {
+  int token_num = 0;
+  int token_idx = 0;
+  bool token_in = false;
+  bool quote_in = false;
+  bool dwait = false;
+  bool testvar =false;
+  bool esc_sec = false;
+  char temp[1024];
+  for (int input_idx = 0; input_idx < 100; input_idx++) {
+    if (input_str[input_idx] == '\0') {
+      temp[token_idx] = '\0';
+      args[token_num] = malloc(sizeof(char) * strlen(temp));
+      strcpy(args[token_num], temp);
+      token_num++;
       break;
-    }
-    // Remove the trailing newline
-    input[strcspn(input, "\n")] = 0;
-    // Parse the input as a space separated list of arguments
-    size_t argc;
-    char **args = shell_tokenize(input, &argc);
-    // for (int i = 0; args[i] != NULL; i++) {
-    //   printf("args[%d] = %s\n", i, args[i]);
-    // }
-    // Check for built-in commands
-    if (args[0] != NULL) {
-      switch (args[0][0]) {
-      case 'c':
-        if (strcmp(args[0], "cd") == 0) {
-          command_cd(argc, args);
-          continue;
-        }
-        break;
-      case 'e':
-        if (strcmp(args[0], "exit") == 0) {
-          if (argc > 1) {
-            return atoi(args[1]);
-          }
-          return 0;
-        } else if (strcmp(args[0], "echo") == 0) {
-          command_echo(argc, args);
-          continue;
-        }
-        break;
-      case 't':
-        if (strcmp(args[0], "type") == 0) {
-          command_type(argc, args);
-          continue;
-        }
-        break;
-      case 'p':
-        if (strcmp(args[0], "pwd") == 0) {
-          command_pwd(argc, args);
-          continue;
-        }
-        break;
+    } else if (input_str[input_idx] == '\'' && !dwait) {
+      if (quote_in)
+        quote_in = false;
+      else
+        quote_in = true;
+    } else if(input_str[input_idx] == '\"'){
+      if(!dwait && quote_in == false){
+        dwait = true;
+        
+      }else{
+        dwait=false;
+        
       }
-    } else {
-      continue;
-    }
-    // Check if command is an executable in PATH
-    char *command_path;
-    if ((command_path = find_in_path(args[0]))) {
-      args[0] = command_path;
-      execute_command(command_path, args);
-      free(command_path);
-      args[0] = NULL;
-      continue;
-    }
-    free_tokens(args, argc);
-    printf("%s: command not found\n", input);
+      }else if (input_str[input_idx] == ' ' ) {
+        
+      if (token_in && !quote_in && !dwait) {
+        temp[token_idx] = '\0';
+        token_idx = 0;
+        args[token_num] = malloc(sizeof(char) * strlen(temp));
+        strcpy(args[token_num], temp);
+        token_num++;
+        dwait = false;
+        token_in = false;
+        quote_in = false;
+      
+      } else if (token_in && quote_in && !dwait) {
+      
+        temp[token_idx] = input_str[input_idx];
+        token_idx++;
+      }else if ((token_in && dwait && !quote_in) || (token_in && dwait && quote_in) )
+      
+      testvar = false;
+      
+      /*
+      {
+        if (input_str[input_idx] == '\\') {
+        input_idx++; // Move to the next character after the backslash
+        if (input_str[input_idx] == '\"') {
+            temp[token_idx] = '\"'; // Keep the escaped double quote
+            token_idx++;
+        } else {
+            // Handle other escaped characters (if needed)
+            temp[token_idx] = '\\'; 
+            token_idx++; 
+            temp[token_idx] = input_str[input_idx]; 
+            token_idx++;
+        }
+          
+        }else{
+        temp[token_idx] = input_str[input_idx];
+        token_idx++;
+        }
+      }
+*/
+    }else {
+      if (token_in == 0)
+        token_in = true;
+        
+      temp[token_idx] = input_str[input_idx];
+      token_idx++;
+    } 
   }
+  return token_num;
+}
+
+int main() {
+ 
+  const char exit[4] = "exit";
+  int argc = 0;
+  char *argv[10];
+  char *args[256];
+  while (1)
+  {
+
+    for (int arg_idx = 0; arg_idx < argc; arg_idx++) {
+      free(args[arg_idx]);
+      args[arg_idx] = NULL;
+    }
+  
+  // Uncomment this block to pass the first stage
+    printf("$ ");
+    fflush(stdout);
+
+  // Wait for user input
+    char input[100];
+    fgets(input, 100, stdin);
+    input[strlen(input) -1 ] = '\0';
+
+    argc = tokenize(input,args);
+    
+
+  // Command Checks
+    if(exitShell(input) == 0){
+      break;
+    }else if (strncmp(input, "echo", 4) == 0)
+    {
+      echoFunction(args, argc);
+      continue;
+    }else if (strncmp(input, "type", 4) == 0)
+    {
+      typeFunction(input);
+      continue;
+    }else if(strncmp(input, "pwd", 3) == 0){
+      GetDirectory();
+      continue;
+    }else if(strncmp(input,"cd", 2) == 0){
+      if (chdir(input + 3) < 0)
+      {
+       ChangeDirectory(input);
+       continue;
+      }
+      continue;
+    }else{
+      execute(input);
+      continue;
+
+    }
+    
+    //Default if command not found
+    printf("%s: command not found\n", input);
+
+  }
+  
+
   return 0;
 }
