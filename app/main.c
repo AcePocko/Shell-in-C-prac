@@ -198,7 +198,7 @@ int tokenize(char *input_str, char **args) {
       {
         if(input_str[input_idx] == '\\'){
 
-        char nextChar = input_str[input_idx+1];
+        TestVar = true;
       
         }else{
         temp[token_idx] = input_str[input_idx];
@@ -220,6 +220,8 @@ int tokenize(char *input_str, char **args) {
           temp[token_idx] = '\\';
           token_idx++;
           input_idx++;
+          temp[token_idx] = input_str[input_idx];
+          token_idx++;
         }else if(dwait && input_str[input_idx] == '\\'){
           char nextChar = input_str[input_idx+1];
           switch (nextChar)
