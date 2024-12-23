@@ -198,42 +198,8 @@ int tokenize(char *input_str, char **args) {
       {
         if(input_str[input_idx] == '\\'){
 
-          if(quote_in == true){
-            temp[token_idx] = input_str[input_idx]; 
-            token_idx++;
-            input_idx++;  // Move to the next character after the backslash
-            temp[token_idx] = input_str[input_idx];  // Handle the character after the backslash
-            token_idx++;
-
-          }else{char nextChar = input_str[input_idx+1];
-          
-          switch (nextChar)
-          {
-          case '\"':
-            temp[token_idx] = '\"';
-            printf("condition hit\n");
-            token_idx++;
-            break;
-          case '\\':
-            temp[token_idx] = '\\';
-            token_idx++;
-            break;
-          case 'n':
-            temp[token_idx] = '\n';
-            token_idx++;
-            break;
-          case '$':
-            temp[token_idx] = '$';
-            token_idx++;   
-            break;
-          default:
-            temp[token_idx] = '\\';
-            token_idx++;
-            break;
-          }
-          input_idx++;
-          }
-          
+        char nextChar = input_str[input_idx+1];
+      
         }else{
         temp[token_idx] = input_str[input_idx];
         token_idx++;
@@ -246,16 +212,53 @@ int tokenize(char *input_str, char **args) {
           
 
     }else {
-      if (token_in == 0)
+      if (token_in == 0){
         token_in = true;
-        if (input_str[input_idx] == '\\') {
+      }
+        if (input_str[input_idx] == '\\' && !dwait && quote_in) {
                     // Treat backslash literally
+                    
                     temp[token_idx] = '\\';
                     token_idx++;
                     input_idx++;
+                }else if(dwait && input_str[input_idx] == '\\'){
+                  char nextChar = input_str[input_idx+1];
+                  switch (nextChar)
+                  {
+                  case '\"':
+                    temp[token_idx] = '\"';
+        
+                    token_idx++;
+                    input_idx++; 
+                    break;
+                  case '\\':
+                    temp[token_idx] = '\\';
+                    token_idx++;
+                    input_idx++; 
+                    break;
+                  case 'n':
+                    temp[token_idx] = 'n';
+                    token_idx++;
+                    input_idx++; 
+                    break;
+                  case '$':
+                    temp[token_idx] = '$';
+                    token_idx++;
+                    input_idx++;    
+                    break;
+                  default:
+                    temp[token_idx] = '\\';
+                    token_idx++;
+                    input_idx++; 
+                    break;
+                  }
+                  
+                  
+                }else{
+                  temp[token_idx] = input_str[input_idx];
+                  token_idx++;
                 }
-      temp[token_idx] = input_str[input_idx];
-      token_idx++;
+      
     } 
   }
   return token_num;
