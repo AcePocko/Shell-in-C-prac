@@ -154,7 +154,6 @@ int tokenize(char *input_str, char **args) {
   int token_idx = 0;
   bool token_in = false;
   bool quote_in = false;
-  bool TestVar = false;
   bool dwait = false;
   bool esc_sec = false;
   char temp[1024];
@@ -194,18 +193,7 @@ int tokenize(char *input_str, char **args) {
 
         temp[token_idx] = input_str[input_idx];
         token_idx++;
-      }else if ((token_in && dwait && !quote_in) || (token_in && dwait && quote_in) )
-      {
-        if(input_str[input_idx] == '\\'){
-
-        TestVar = true;
-      
-        }else{
-        temp[token_idx] = input_str[input_idx];
-        token_idx++;
-        }
       }
-
     }else if(input_str[input_idx] == '\\' && (!quote_in && !dwait)){
         input_idx++;
         temp[token_idx++] = input_str[input_idx];
@@ -215,44 +203,44 @@ int tokenize(char *input_str, char **args) {
       if (token_in == 0){
         token_in = true;
       }
-        if (input_str[input_idx] == '\\' && !dwait && quote_in) {
-          // Treat backslash literally
-          temp[token_idx] = '\\';
-          token_idx++;
+      if (input_str[input_idx] == '\\' && !dwait && quote_in) {
+        // Treat backslash literally
+        temp[token_idx] = '\\';
+        token_idx++;
+        input_idx++;
+        temp[token_idx] = input_str[input_idx];
+        token_idx++;
+      }else if(dwait && input_str[input_idx] == '\\'){
+        char nextChar = input_str[input_idx+1];
+        switch (nextChar)
+        {
+          case '\"':
+            temp[token_idx] = '\"';
+            token_idx++;
+            break;
+          case '\\':
+            temp[token_idx] = '\\';
+            token_idx++;
+            break;
+          case 'n':
+            temp[token_idx] = 'n';
+            token_idx++;
+            break;
+          case '$':
+            temp[token_idx] = '$';
+            token_idx++;
+            break;
+          default:
+            temp[token_idx] = '\\';
+            token_idx++;
+            break;
+          }
           input_idx++;
+                      
+        }else{
           temp[token_idx] = input_str[input_idx];
           token_idx++;
-        }else if(dwait && input_str[input_idx] == '\\'){
-          char nextChar = input_str[input_idx+1];
-          switch (nextChar)
-          {
-            case '\"':
-              temp[token_idx] = '\"';
-              token_idx++;
-              break;
-            case '\\':
-              temp[token_idx] = '\\';
-              token_idx++;
-              break;
-            case 'n':
-              temp[token_idx] = 'n';
-              token_idx++;
-              break;
-            case '$':
-              temp[token_idx] = '$';
-              token_idx++;
-              break;
-            default:
-              temp[token_idx] = '\\';
-              token_idx++;
-              break;
-            }
-            input_idx++;
-                        
-          }else{
-            temp[token_idx] = input_str[input_idx];
-            token_idx++;
-          }
+        }
     } 
   }
   return token_num;
