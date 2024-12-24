@@ -171,12 +171,15 @@ int tokenize(char *input_str, char **args) {
                 token_num++;
                 token_in = false;
             }
-        } else {
+        } else if(input_str[input_idx] == '\\' && !quote_in && !double_quote_in){
+          input_idx++;
+          temp[token_idx++] = input_str[input_idx];
+        }else {
             if (!token_in) {
                 token_in = true;
             }
 
-            if (input_str[input_idx] == '\\' && double_quote_in) {
+            if (input_str[input_idx] == '\\' && double_quote_in || input_str[input_idx] == '\\' && !double_quote_in && !quote_in ) {
                 input_idx++; 
                 if (input_str[input_idx] != '\0') { 
                     switch (input_str[input_idx]) {
