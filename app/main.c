@@ -85,7 +85,7 @@ void execute(char input[100],char **args,int argc) {
     }
   }
   */
-  printf("%s: command not found\n", input);
+  printf("%s: command cccnot found\n", input);
 }
 
 char *find_PATH_Exec(char input[]){
@@ -285,7 +285,7 @@ int main() {
     }
     
     //Default if command not found
-    printf("%s: command not found\n", input);
+    printf("%s: command dddnot found\n", input);
 
   }
   
