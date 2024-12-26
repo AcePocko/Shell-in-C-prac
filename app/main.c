@@ -62,10 +62,6 @@ void execute(char input[100],char **args,int argc) {
   int *path_count = calloc(1, sizeof(int));
   char **filepaths = getPaths(PATH, path_count);
   
-  
-    printf("%s",args[0]);
-  
-  /*
   for (int i = 0; i < path_count[0]; i++) {
     char *inputCopy = calloc(100, sizeof(char));
     strcpy(inputCopy, input);
@@ -83,7 +79,7 @@ void execute(char input[100],char **args,int argc) {
       return;
     }
   }
-  */
+  
   printf("%s: command cccnot found\n", input);
 }
 
@@ -230,6 +226,13 @@ int tokenize(char *input_str, char **args) {
 }
 
 
+void execute_quotes(char **args, int argc){
+  char path[strlen(args[0])+4+strlen(args[1])];
+  sprintf(path,"%s %s", args[0], args[1]);
+  system(path);
+  return;
+}
+
 int main() {
  
   const char exit[4] = "exit";
@@ -277,10 +280,12 @@ int main() {
        continue;
       }
       continue;
+    }else if(strncmp(input,"\'", 1) == 0 || strncmp(input,"\"", 1) == 0){
+      execute_quotes(args,argc);
+      continue;
     }else{
       execute(input,args,argc);
       continue;
-
     }
     
     //Default if command not found
