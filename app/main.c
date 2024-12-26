@@ -254,9 +254,7 @@ int main() {
     input[strlen(input) -1 ] = '\0';
 
     argc = tokenize(input,args);
-    printf("%s\n", args[0]);
-    printf("%s\n", args[1]);
-    printf("%d", argc);
+   
 
   // Command Checks
     if(exitShell(input) == 0){
