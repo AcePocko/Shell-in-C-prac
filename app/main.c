@@ -231,6 +231,7 @@ void execute_quotes(char **args, int argc){
   sprintf(path,"%s %s", args[0], args[1]);
   if (execvp(args[0], args) == -1) {
         perror("Execution failed");
+        return;
     }
   return;
 }
