@@ -55,10 +55,17 @@ int isExecutable(char *path){
   return access(path, X_OK);
 }
 
-void execute(char input[100]) {
+void execute(char input[100],char **args,int argc) {
   char *PATH = getenv("PATH");
   int *path_count = calloc(1, sizeof(int));
   char **filepaths = getPaths(PATH, path_count);
+  
+  if(input[0] == '\'' || input[0] == '\"'){
+    char exec[strlen(args[0])+strlen(args[1])];
+    sprintf(exec,"%s %s",args[0],args[1]);
+    system(exec);
+    return;
+  }
   
   for (int i = 0; i < path_count[0]; i++) {
     char *inputCopy = calloc(100, sizeof(char));
@@ -67,6 +74,7 @@ void execute(char input[100]) {
     char fullpath[strlen(filepaths[i]) + strlen(command)];
     
     sprintf(fullpath, "%s/%s", filepaths[i], command);
+  
     
     if (isExecutable(fullpath) == 0) {
       char exec[strlen(filepaths[i]) + strlen(input)];
@@ -246,6 +254,9 @@ int main() {
     input[strlen(input) -1 ] = '\0';
 
     argc = tokenize(input,args);
+    printf("%s\n", args[0]);
+    printf("%s\n", args[1]);
+    printf("%d", argc);
 
   // Command Checks
     if(exitShell(input) == 0){
@@ -269,7 +280,7 @@ int main() {
       }
       continue;
     }else{
-      execute(input);
+      execute(input,args,argc);
       continue;
 
     }
