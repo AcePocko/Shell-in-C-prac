@@ -63,10 +63,7 @@ void execute(char input[100],char **args,int argc) {
   char **filepaths = getPaths(PATH, path_count);
   
   
-    char exec[strlen(args[0])+strlen(args[1])];
-    sprintf(exec,"%s %s",args[0],args[1]);
-    system(exec);
-    return;
+    printf("%s",args[0]);
   
   /*
   for (int i = 0; i < path_count[0]; i++) {
