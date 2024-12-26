@@ -232,6 +232,7 @@ void execute_quotes(char **args, int argc){
   if (execvp(args[0], args) == -1) {
         perror("Execution failed");
     }
+  return;
 }
 
 int main() {
@@ -283,7 +284,6 @@ int main() {
       continue;
     }else if(strncmp(input,"\'", 1) == 0 || strncmp(input,"\"", 1) == 0){
       execute_quotes(args,argc);
-      
       continue;
     }else{
       execute(input,args,argc);
