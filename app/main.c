@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 
 int exitShell(char input[]){
@@ -11,6 +12,24 @@ int exitShell(char input[]){
     {
       return 0;
     }
+}
+
+int run_command(char *cmd_path, char **cmd_args) {
+  int status = 0;
+  int ret;
+
+  pid_t wpid;
+  pid_t pid = fork();
+  if (pid == 0) {
+    if ((ret =execvp(cmd_path, cmd_args)) == -1)
+      return -1;
+    exit(ret);
+  } else {
+    do {
+      wpid = waitpid(pid, &status, WUNTRACED);
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+  }
+  return 0;
 }
 
 char **getPaths(char* path, int* path_count) {
@@ -61,10 +80,14 @@ void execute(char input[100],char **args,int argc) {
   char **filepaths = getPaths(PATH, path_count);
   
   if(input[0] == '\'' || input[0] == '\"'){
-    char exec[strlen(args[0])+strlen(args[1])];
-    sprintf(exec,"%s %s",args[0],args[1]);
-    system(exec);
-    return;
+    
+    run_command(args,args[1]);
+    
+    
+    //char exec[strlen(args[0])+strlen(args[1])];
+    //sprintf(exec,"%s %s",args[0],args[1]);
+    //system(exec);
+    //return;
   }
   /*
   for (int i = 0; i < path_count[0]; i++) {
