@@ -130,7 +130,7 @@ void typeFunction(char input[]){
       if(path){
         printf("%s is %s\n", input+5, path);
       }else{
-        printf("%s: not found\n", input+5);
+        printf("%s: $not found\n", input+5);
       }
     }
  
