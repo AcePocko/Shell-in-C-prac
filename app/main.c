@@ -79,7 +79,7 @@ void execute(char input[100],char **args,int argc) {
   int *path_count = calloc(1, sizeof(int));
   char **filepaths = getPaths(PATH, path_count);
   
-  if(input[0] == '\'' || input[0] == '\"'){
+  
     
     run_command(args,args[1]);
     
@@ -88,7 +88,7 @@ void execute(char input[100],char **args,int argc) {
     //sprintf(exec,"%s %s",args[0],args[1]);
     //system(exec);
     //return;
-  }
+  
   /*
   for (int i = 0; i < path_count[0]; i++) {
     char *inputCopy = calloc(100, sizeof(char));
