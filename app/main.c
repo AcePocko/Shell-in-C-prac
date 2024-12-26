@@ -66,7 +66,7 @@ void execute(char input[100],char **args,int argc) {
     system(exec);
     return;
   }
-  
+  /*
   for (int i = 0; i < path_count[0]; i++) {
     char *inputCopy = calloc(100, sizeof(char));
     strcpy(inputCopy, input);
@@ -84,6 +84,7 @@ void execute(char input[100],char **args,int argc) {
       return;
     }
   }
+  */
   printf("%s: command not found\n", input);
 }
 
