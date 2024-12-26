@@ -229,7 +229,9 @@ int tokenize(char *input_str, char **args) {
 void execute_quotes(char **args, int argc){
   char path[strlen(args[0])+4+strlen(args[1])];
   sprintf(path,"%s %s", args[0], args[1]);
-  system(path);
+  if (execvp(args[0], args) == -1) {
+        perror("Execution failed");
+    }
   return;
 }
 
@@ -282,6 +284,7 @@ int main() {
       continue;
     }else if(strncmp(input,"\'", 1) == 0 || strncmp(input,"\"", 1) == 0){
       execute_quotes(args,argc);
+      
       continue;
     }else{
       execute(input,args,argc);
