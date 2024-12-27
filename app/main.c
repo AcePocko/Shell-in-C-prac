@@ -57,7 +57,7 @@ int isExecutable(char *path){
   return access(path, X_OK);
 }
 
-void execute(char input[100],char **args,int argc) {
+void execute(char input[100]) {
   char *PATH = getenv("PATH");
   int *path_count = calloc(1, sizeof(int));
   char **filepaths = getPaths(PATH, path_count);
@@ -230,7 +230,6 @@ void execute_quotes(char **args, int argc){
   char path[strlen(args[0])+4+strlen(args[1])];
   sprintf(path,"%s %s", args[0], args[1]);
   if (execvp(args[0], args) == -1) {
-        perror("Execution failed");
         return;
     }
   return;
@@ -238,7 +237,6 @@ void execute_quotes(char **args, int argc){
 
 int main() {
  
-  const char exit[4] = "exit";
   int argc = 0;
   char *argv[10];
   char *args[256];
@@ -287,12 +285,12 @@ int main() {
       execute_quotes(args,argc);
       continue;
     }else{
-      execute(input,args,argc);
+      execute(input);
       continue;
     }
     
     //Default if command not found
-    printf("%s: command dddnot found\n", input);
+    printf("%s: command not found\n", input);
 
   }
   
