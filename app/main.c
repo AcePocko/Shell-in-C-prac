@@ -232,7 +232,6 @@ void execute_quotes(char **args, int argc){
   if (execvp(args[0], args) == -1) {
         return;
     }
-  return;
 }
 
 int main() {
