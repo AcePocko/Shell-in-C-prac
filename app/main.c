@@ -225,7 +225,20 @@ int tokenize(char *input_str, char **args) {
     return token_num;
 }
 
+void execute_quotes(char **args, int argc) {
+    // No need to construct a separate path string
 
+    // Handle cases with more than one argument within quotes
+    if (argc > 1) {
+        // Ensure the last argument is NULL
+        args[argc] = NULL; 
+    }
+
+    if (execvp(args[0], args) == -1) {
+        perror("execvp"); 
+    }
+}
+/*
 void execute_quotes(char **args, int argc){
   char path[strlen(args[0])+4+strlen(args[1])];
   sprintf(path,"%s %s", args[0], args[1]);
@@ -233,7 +246,7 @@ void execute_quotes(char **args, int argc){
         return;
     }
 }
-
+*/
 int main() {
  
   int argc = 0;
