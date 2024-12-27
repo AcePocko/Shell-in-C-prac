@@ -79,9 +79,13 @@ void execute(char input[100]) {
                 arg = strtok(NULL, " ");
             }
             args[arg_count] = NULL; 
-            execvp(args[0], args); 
-            perror("execvp"); // Print error if execvp fails
-            exit(1); 
+
+            if (execvp(args[0], args) == -1) { 
+                perror("execvp"); 
+            } else { 
+                // Successful execution, no need to continue the loop
+                return; 
+            }
         }
     }
 
