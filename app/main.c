@@ -58,29 +58,34 @@ int isExecutable(char *path){
 }
 
 void execute(char input[100]) {
-  char *PATH = getenv("PATH");
-  int *path_count = calloc(1, sizeof(int));
-  char **filepaths = getPaths(PATH, path_count);
-  
-  for (int i = 0; i < path_count[0]; i++) {
-    char *inputCopy = calloc(100, sizeof(char));
-    strcpy(inputCopy, input);
-    char *command = strtok(inputCopy, " ");
-    char fullpath[strlen(filepaths[i]) + strlen(command)];
-    
-    sprintf(fullpath, "%s/%s", filepaths[i], command);
-  
-    
-    if (isExecutable(fullpath) == 0) {
-      char exec[strlen(filepaths[i]) + strlen(input)];
-      sprintf(exec, "%s/%s", filepaths[i], input);
-      // printf("%s\n", input);
-      system(exec);
-      return;
+    char *PATH = getenv("PATH");
+    int *path_count = calloc(1, sizeof(int));
+    char **filepaths = getPaths(PATH, path_count);
+
+    for (int i = 0; i < path_count[0]; i++) {
+        char *inputCopy = calloc(100, sizeof(char));
+        strcpy(inputCopy, input);
+        char *command = strtok(inputCopy, " "); 
+        char fullpath[strlen(filepaths[i]) + strlen(command) + 2]; // +2 for '/' and '\0'
+        sprintf(fullpath, "%s/%s", filepaths[i], command);
+
+        if (isExecutable(fullpath) == 0) {
+            char *args[256]; // Adjust the size as needed
+            args[0] = fullpath; 
+            char *arg = strtok(inputCopy, " "); 
+            int arg_count = 1; 
+            while (arg != NULL) {
+                args[arg_count++] = arg;
+                arg = strtok(NULL, " ");
+            }
+            args[arg_count] = NULL; 
+            execvp(args[0], args); 
+            perror("execvp"); // Print error if execvp fails
+            exit(1); 
+        }
     }
-  }
-  
-  printf("%s: command cccnot found\n", input);
+
+    printf("%s: command not found\n", input);
 }
 
 char *find_PATH_Exec(char input[]){
@@ -238,15 +243,7 @@ void execute_quotes(char **args, int argc) {
         perror("execvp"); 
     }
 }
-/*
-void execute_quotes(char **args, int argc){
-  char path[strlen(args[0])+4+strlen(args[1])];
-  sprintf(path,"%s %s", args[0], args[1]);
-  if (execvp(args[0], args) == -1) {
-        return;
-    }
-}
-*/
+
 int main() {
  
   int argc = 0;
