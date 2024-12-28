@@ -256,10 +256,10 @@ int main() {
   while (1)
   {
 
-    for (int arg_idx = 0; arg_idx < argc; arg_idx++) {
-      free(args[arg_idx]);
-      args[arg_idx] = NULL;
-    }
+    //for (int arg_idx = 0; arg_idx < argc; arg_idx++) {
+      //free(args[arg_idx]);
+      //args[arg_idx] = NULL;
+    //}
   
   // Uncomment this block to pass the first stage
     printf("$ ");
